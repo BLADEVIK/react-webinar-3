@@ -3,8 +3,24 @@
  */
 class Store {
   constructor(initState = {}) {
-    this.state = initState;
+    this.state = {
+      ...initState,
+      list: initState.list.map(item => ({
+        ...item,
+        selectionCount: 0
+      }))
+    };
     this.listeners = []; // Слушатели изменений состояния
+    // Находим максимальный существующий код при инициализации
+    this.lastCode = Math.max(...initState.list.map(item => item.code), 0);
+  }
+
+  /**
+   * Получение следующего уникального кода
+   * @returns {number}
+   */
+  getNextCode() {
+    return ++this.lastCode;
   }
 
   /**
@@ -44,7 +60,11 @@ class Store {
   addItem() {
     this.setState({
       ...this.state,
-      list: [...this.state.list, { code: this.state.list.length + 1, title: 'Новая запись' }],
+      list: [...this.state.list, { 
+        code: this.getNextCode(), 
+        title: 'Новая запись',
+        selectionCount: 0
+      }],
     });
   }
 
@@ -61,17 +81,28 @@ class Store {
 
   /**
    * Выделение записи по коду
-   * @param code
+   * @param code {number} Код записи
+   * @param multiSelect {boolean} Режим множественного выделения
    */
-  selectItem(code) {
+  selectItem(code, multiSelect = false) {
     this.setState({
       ...this.state,
       list: this.state.list.map(item => {
-        if (item.code === code) {
-          item.selected = !item.selected;
-        }
-        return item;
-      }),
+        const willBeSelected = multiSelect 
+          ? (item.code === code ? !item.selected : item.selected)
+          : (item.code === code ? !item.selected : false);
+        
+        // Увеличиваем счетчик только если элемент становится выделенным
+        const newSelectionCount = (item.code === code && !item.selected && willBeSelected) 
+          ? (item.selectionCount || 0) + 1 
+          : (item.selectionCount || 0);
+
+        return {
+          ...item,
+          selected: willBeSelected,
+          selectionCount: newSelectionCount
+        };
+      })
     });
   }
 }
